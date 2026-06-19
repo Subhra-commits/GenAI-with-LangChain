@@ -1,0 +1,17 @@
+{
+    "name": null,
+    "input_variables": [
+        "level",
+        "role",
+        "topic"
+    ],
+    "optional_variables": [],
+    "output_parser": null,
+    "partial_variables": {},
+    "metadata": null,
+    "tags": null,
+    "template": "\n            You are a {role}. Explain the topic \"{topic}\" in a {level} manner.\n        ",
+    "template_format": "f-string",
+    "validate_template": true,
+    "_type": "prompt"
+}

@@ -1,0 +1,12 @@
+# langchain core modules
+langchain
+langchain-core
+
+# Huggingface integration
+transformers
+huggingface_hub
+langchain_huggingface
+
+# Environment and utility packages
+python-dotenv
+numpy
