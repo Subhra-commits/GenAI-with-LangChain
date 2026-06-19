@@ -10,3 +10,7 @@ langchain_huggingface
 # Environment and utility packages
 python-dotenv
 numpy
+
+# Data validation and frontend application
+pydantic
+streamlit
