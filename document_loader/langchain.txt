@@ -1,0 +1,1366 @@
+What is a Chain in LangChain?
+A Chain is a workflow that connects multiple LangChain components together, where the output of one component becomes the input of the next component.
+
+Think of it as a pipeline.
+
+Input → Prompt → LLM → Parser → Output
+Instead of manually calling each step, a chain executes them in sequence.
+
+Why do we need Chains?
+Without a chain:
+
+prompt_text = prompt.invoke({"topic": "Python"})
+
+response = model.invoke(prompt_text)
+
+result = parser.invoke(response)
+
+print(result)
+You have to manage each step manually.
+
+With a chain:
+
+chain = prompt | model | parser
+
+result = chain.invoke({"topic": "Python"})
+Much cleaner and easier to maintain.
+
+Types of Chains
+1. Simple Sequential Chain
+A straightforward sequence of components.
+
+chain = prompt | model | StrOutputParser()
+Example:
+
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+prompt = PromptTemplate(
+    template="Explain {topic} in simple terms.",
+    input_variables=["topic"]
+)
+
+chain = prompt | model | StrOutputParser()
+
+result = chain.invoke({"topic": "FastAPI"})
+Flow:
+
+Input
+ ↓
+PromptTemplate
+ ↓
+Chat Model
+ ↓
+String Parser
+ ↓
+Output
+2. Structured Output Chain
+Used when the output needs validation.
+
+chain = prompt | model | PydanticOutputParser(...)
+Example:
+
+Input
+ ↓
+Prompt
+ ↓
+LLM
+ ↓
+Pydantic Parser
+ ↓
+Person Object
+3. RAG Chain (Retrieval-Augmented Generation)
+Very common in GenAI applications.
+
+Question
+   ↓
+Retriever
+   ↓
+Relevant Documents
+   ↓
+Prompt
+   ↓
+LLM
+   ↓
+Answer
+Example:
+
+rag_chain = (
+    {
+        "context": retriever,
+        "question": RunnablePassthrough()
+    }
+    | prompt
+    | model
+    | StrOutputParser()
+)
+4. Parallel Chains
+Run multiple operations simultaneously.
+
+Example:
+
+from langchain_core.runnables import RunnableParallel
+
+chain = RunnableParallel(
+    summary=summarization_chain,
+    sentiment=sentiment_chain
+)
+Input:
+
+Review Text
+Output:
+
+{
+    "summary": "...",
+    "sentiment": "Positive"
+}
+5. Branching Chains
+Different paths based on conditions.
+
+Input
+  ↓
+Condition
+ ├── Positive Path
+ └── Negative Path
+Useful for routing tasks.
+
+LCEL (LangChain Expression Language)
+Modern LangChain chains are built using LCEL.
+
+The | operator creates a chain.
+
+Example:
+
+chain = prompt | model | parser
+Equivalent to:
+
+output1 = prompt.invoke(input)
+
+output2 = model.invoke(output1)
+
+output3 = parser.invoke(output2)
+Important Chain Methods
+invoke()
+For a single input.
+
+result = chain.invoke(
+    {"topic": "Python"}
+)
+batch()
+For multiple inputs.
+
+results = chain.batch([
+    {"topic": "Python"},
+    {"topic": "FastAPI"},
+    {"topic": "AWS"}
+])
+Processes them efficiently.
+
+stream()
+For streaming output token by token.
+
+for chunk in chain.stream(
+    {"topic": "Python"}
+):
+    print(chunk, end="")
+ainvoke()
+Async execution.
+
+result = await chain.ainvoke(
+    {"topic": "Python"}
+)
+Useful in FastAPI applications.
+
+Real-Life Example
+Suppose you're building a resume screening system.
+
+Resume
+  ↓
+Prompt
+  ↓
+LLM
+  ↓
+Parser
+  ↓
+Structured Candidate Data
+Chain:
+
+chain = prompt | model | parser
+Input:
+
+John has 4 years of Python experience.
+Output:
+
+{
+    "name": "John",
+    "experience": 4,
+    "skills": ["Python"]
+}
+Chain vs Agent
+Chain	Agent
+Fixed workflow	Dynamic workflow
+Predefined steps	Decides next step at runtime
+Faster	More flexible
+Deterministic	Reasoning-based
+Example: Prompt → LLM → Parser	Example: Choose tool → Call tool → Analyze result
+Chain Example
+prompt → model → parser
+Always follows the same path.
+
+Agent Example
+User asks weather
+        ↓
+Agent decides
+        ↓
+Call Weather Tool
+        ↓
+Return answer
+The path is determined dynamically.
+
+Interview Answer
+A Chain in LangChain is a sequence of components that work together to perform a task. The output of one component becomes the input to the next component. Chains help automate workflows involving prompts, LLMs, retrievers, tools, and output parsers. In modern LangChain, chains are typically built using the LangChain Expression Language (LCEL) and the | operator. Common examples include prompt-to-LLM chains, retrieval-augmented generation (RAG) chains, and structured output chains. Chains are deterministic workflows, whereas agents dynamically decide which actions or tools to use.
+
+
+difference between .invoke() and format() and parser()
+
+These three are often confusing because they operate at different stages of a LangChain pipeline.
+
+1. format() — Creates the Prompt Text
+Used with PromptTemplate.
+
+It simply replaces placeholders with actual values and returns a string.
+
+Example
+from langchain_core.prompts import PromptTemplate
+
+prompt = PromptTemplate(
+    template="Tell me about {topic}",
+    input_variables=["topic"]
+)
+
+result = prompt.format(topic="Python")
+
+print(result)
+Output:
+
+Tell me about Python
+No LLM is called here.
+
+Purpose
+Convert:
+
+Tell me about {topic}
+into:
+
+Tell me about Python
+2. invoke() — Executes a Runnable
+invoke() is used on:
+
+Prompts
+
+Models
+
+Parsers
+
+Chains
+
+It actually runs that component.
+
+Prompt Invoke
+prompt.invoke({"topic": "Python"})
+Output:
+
+StringPromptValue(text='Tell me about Python')
+Notice this is not a plain string.
+
+Model Invoke
+response = model.invoke("Tell me about Python")
+Output:
+
+AIMessage(
+    content="Python is a programming language..."
+)
+Here the LLM is called.
+
+Chain Invoke
+chain = prompt | model | StrOutputParser()
+
+result = chain.invoke({"topic": "Python"})
+Output:
+
+Python is a programming language...
+The entire pipeline executes.
+
+3. parser.parse() — Converts Output to Desired Format
+Parsers take the model output and transform it.
+
+Example
+from langchain_core.output_parsers import JsonOutputParser
+
+parser = JsonOutputParser()
+
+text = '''
+{
+  "name": "John",
+  "age": 30
+}
+'''
+
+result = parser.parse(text)
+
+print(result)
+Output:
+
+{
+  'name': 'John',
+  'age': 30
+}
+No LLM call happens here.
+
+It's just data conversion.
+
+End-to-End Example
+Step 1: Format Prompt
+prompt_text = prompt.format(topic="Python")
+Output:
+
+Tell me about Python
+Step 2: Call LLM
+response = model.invoke(prompt_text)
+Output:
+
+AIMessage(
+    content="Python is a programming language..."
+)
+Step 3: Parse Output
+result = parser.parse(response.content)
+Output:
+
+{
+   ...
+}
+Relationship in a Chain
+When you write:
+
+chain = prompt | model | parser
+and then:
+
+chain.invoke({"topic": "Python"})
+internally LangChain does something similar to:
+
+prompt_value = prompt.invoke({"topic": "Python"})
+
+llm_response = model.invoke(prompt_value)
+
+final_result = parser.invoke(llm_response)
+You only call .invoke() once, and LangChain handles the rest.
+
+Quick Comparison
+Method	Used On	Purpose	Calls LLM?
+format()	PromptTemplate	Replace variables and generate prompt text	❌
+invoke()	Prompt, Model, Parser, Chain	Execute the component	Depends on component
+parse()	Output Parser	Convert text into structured output	❌
+Interview Answer
+format() is used with prompt templates to substitute variables and generate the final prompt string without executing anything. invoke() is used to execute a LangChain runnable such as a prompt, model, parser, or entire chain. parse() is used by output parsers to transform the model's textual response into a structured format such as a dictionary or Pydantic object. In a typical workflow, the prompt is formatted, the model is invoked, and the response is parsed.
+
+
+branching chain
+
+What is a Branching Chain in LangChain?
+A Branching Chain is a workflow where the execution path changes based on a condition.
+
+Instead of a fixed flow:
+
+Input → Prompt → LLM → Output
+you have multiple possible paths:
+
+                Input
+                  │
+                  ▼
+             Condition
+              /     \
+             /       \
+            ▼         ▼
+      Chain A      Chain B
+The chain decides which branch to execute based on the input.
+
+Why do we need Branching?
+Imagine a customer support chatbot:
+
+User Query
+    │
+    ▼
+Check Query Type
+    │
+ ┌──┴─────────┐
+ ▼            ▼
+Technical   Billing
+Chain       Chain
+Different prompts and workflows are used for different types of questions.
+
+Using RunnableBranch
+LangChain provides RunnableBranch for this purpose.
+
+Example
+from langchain_core.runnables import RunnableBranch
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+positive_prompt = PromptTemplate.from_template(
+    "Write a thank you message for this positive review: {review}"
+)
+
+negative_prompt = PromptTemplate.from_template(
+    "Write an apology message for this negative review: {review}"
+)
+
+branch = RunnableBranch(
+    (
+        lambda x: "good" in x["review"].lower(),
+        positive_prompt | model | StrOutputParser()
+    ),
+    negative_prompt | model | StrOutputParser()
+)
+Invoke:
+
+result = branch.invoke(
+    {"review": "This product is good"}
+)
+The positive branch executes.
+
+Sentiment-Based Example
+Review
+   │
+   ▼
+Sentiment Check
+   │
+ ┌─┴───────────┐
+ ▼             ▼
+Positive    Negative
+Prompt       Prompt
+For:
+
+"The service was excellent."
+Use a gratitude response.
+
+For:
+
+"The service was terrible."
+Use an apology response.
+
+Multiple Branches
+branch = RunnableBranch(
+    (
+        lambda x: x["type"] == "python",
+        python_chain
+    ),
+    (
+        lambda x: x["type"] == "sql",
+        sql_chain
+    ),
+    (
+        lambda x: x["type"] == "aws",
+        aws_chain
+    ),
+    default_chain
+)
+Flow:
+
+Input
+  │
+  ▼
+Type Check
+  │
+ ├── Python → Python Chain
+ ├── SQL    → SQL Chain
+ ├── AWS    → AWS Chain
+ └── Other  → Default Chain
+The first matching condition wins.
+
+Real-World Use Cases
+1. Customer Support
+Query
+ │
+ ▼
+Classify
+ │
+ ├─ Billing
+ ├─ Technical
+ └─ General
+Each category has its own chain.
+
+2. Resume Screening
+Resume
+ │
+ ▼
+Experience Check
+ │
+ ├─ Freshers
+ ├─ Mid-Level
+ └─ Senior
+Different evaluation criteria for each.
+
+3. Multi-Language Assistant
+Question
+ │
+ ▼
+Language Detection
+ │
+ ├─ English Chain
+ ├─ Hindi Chain
+ └─ French Chain
+4. RAG Routing
+Question
+ │
+ ▼
+Domain Detection
+ │
+ ├─ HR Vector DB
+ ├─ Finance Vector DB
+ └─ Legal Vector DB
+Route queries to the correct retriever.
+
+Branching Chain vs Sequential Chain
+Sequential Chain
+Input
+  │
+  ▼
+Prompt
+  │
+  ▼
+LLM
+  │
+  ▼
+Parser
+Always follows the same path.
+
+Branching Chain
+Input
+  │
+  ▼
+Condition
+  │
+ ├─ Path A
+ ├─ Path B
+ └─ Path C
+Path changes dynamically.
+
+Interview Answer
+A Branching Chain in LangChain is a workflow that routes execution to different chains based on conditions. Unlike a sequential chain that always follows the same path, a branching chain evaluates input and chooses the appropriate branch. LangChain provides RunnableBranch to implement this behavior. Common use cases include customer support routing, sentiment-based responses, multi-language processing, and directing queries to different retrievers in RAG systems. This allows applications to handle different scenarios dynamically while keeping workflows modular and maintainable.
+
+One-liner for interviews
+"A branching chain is a conditional workflow in LangChain where different chains are executed based on the input, similar to an if-elif-else structure in Python."
+
+
+what Runnable lambda doing
+
+In the RunnableBranch example, the lambda function is the condition checker. It decides which branch should run.
+
+Example:
+
+branch = RunnableBranch(
+    (
+        lambda x: "good" in x["review"].lower(),
+        positive_chain
+    ),
+    negative_chain
+)
+Let's break it down.
+
+Input
+{
+    "review": "This product is good"
+}
+LangChain passes this input to the lambda:
+
+x = {
+    "review": "This product is good"
+}
+The lambda evaluates:
+
+"good" in x["review"].lower()
+which becomes:
+
+"good" in "this product is good"
+Result:
+
+True
+Since the condition is True, LangChain executes:
+
+positive_chain
+If the review is negative
+Input:
+
+{
+    "review": "This product is terrible"
+}
+Lambda:
+
+"good" in "this product is terrible"
+Result:
+
+False
+So LangChain skips that branch and executes the default branch:
+
+negative_chain
+Why use a lambda?
+A lambda is just a short anonymous function.
+
+Instead of:
+
+def is_positive(x):
+    return "good" in x["review"].lower()
+you can write:
+
+lambda x: "good" in x["review"].lower()
+Both are equivalent.
+
+More realistic example
+Suppose you're routing interview questions.
+
+branch = RunnableBranch(
+    (
+        lambda x: "python" in x["question"].lower(),
+        python_chain
+    ),
+    (
+        lambda x: "sql" in x["question"].lower(),
+        sql_chain
+    ),
+    (
+        lambda x: "aws" in x["question"].lower(),
+        aws_chain
+    ),
+    general_chain
+)
+Input:
+
+{
+    "question": "Explain joins in SQL"
+}
+Checks:
+
+"python" in question   # False
+"sql" in question      # True
+So:
+
+sql_chain
+runs.
+
+What is Runnable then?
+In LangChain, anything that can be executed is called a Runnable.
+
+Examples:
+
+prompt
+model
+parser
+chain
+RunnableLambda
+RunnableBranch
+all implement methods such as:
+
+.invoke()
+.batch()
+.stream()
+.ainvoke()
+RunnableLambda
+LangChain also provides a special wrapper:
+
+from langchain_core.runnables import RunnableLambda
+
+length_chain = RunnableLambda(
+    lambda x: len(x)
+)
+
+print(length_chain.invoke("Python"))
+Output:
+
+6
+Here the lambda itself becomes a runnable component that can be placed inside a chain.
+
+Example:
+
+chain = (
+    prompt
+    | model
+    | StrOutputParser()
+    | RunnableLambda(lambda text: text.upper())
+)
+Flow:
+
+Prompt
+ ↓
+LLM
+ ↓
+String Output
+ ↓
+Convert to Uppercase
+ ↓
+Final Output
+Interview Answer
+In RunnableBranch, the lambda function acts as a condition evaluator. It receives the input data and returns either True or False. Based on the result, LangChain decides which branch of the workflow to execute. The lambda is similar to an if condition in Python and is commonly used for routing inputs to different chains. RunnableLambda can also be used to wrap custom Python functions so they can participate as steps in a LangChain pipeline.
+
+
+What is runnables? Why to use it? What are the common functions in runnables?
+
+This is a very common LangChain interview topic.
+
+What are Runnables in LangChain?
+A Runnable is the fundamental building block in modern LangChain.
+
+A Runnable is anything that can take an input, perform some operation, and produce an output.
+
+Examples:
+
+PromptTemplate
+ChatOpenAI
+ChatHuggingFace
+StrOutputParser
+JsonOutputParser
+RunnableLambda
+RunnableBranch
+Retriever
+Entire Chain
+All of these are Runnables because they support a common interface.
+
+Why were Runnables introduced?
+Before LCEL (LangChain Expression Language), chains were built using classes like:
+
+LLMChain
+SequentialChain
+SimpleSequentialChain
+These became difficult to compose and maintain.
+
+Runnables provide:
+
+Standardized interface
+
+Easy chaining using |
+
+Streaming support
+
+Async support
+
+Batch processing
+
+Parallel execution
+
+Branching workflows
+
+Think of Runnables as Lego Blocks
+Every component:
+
+Prompt
+Model
+Parser
+Retriever
+Custom Function
+is a Runnable.
+
+You can connect them together:
+
+chain = prompt | model | parser
+because all of them understand the same Runnable interface.
+
+Common Runnable Methods
+1. invoke()
+Executes on a single input.
+
+result = chain.invoke(
+    {"topic": "Python"}
+)
+Input:
+
+{"topic": "Python"}
+Output:
+
+"Python is a programming language..."
+Most commonly used method
+2. batch()
+Executes multiple inputs at once.
+
+results = chain.batch([
+    {"topic": "Python"},
+    {"topic": "AWS"},
+    {"topic": "FastAPI"}
+])
+Output:
+
+[
+    "...Python...",
+    "...AWS...",
+    "...FastAPI..."
+]
+Why use it?
+Faster than calling .invoke() repeatedly.
+
+3. stream()
+Streams output token-by-token.
+
+for chunk in chain.stream(
+    {"topic": "Python"}
+):
+    print(chunk, end="")
+Output appears gradually:
+
+Python is a programming language...
+instead of waiting for the entire response.
+
+Useful for:
+Chatbots
+
+Real-time applications
+
+4. ainvoke()
+Async version of invoke.
+
+result = await chain.ainvoke(
+    {"topic": "Python"}
+)
+Useful in:
+FastAPI
+
+Async web applications
+
+5. abatch()
+Async batch processing.
+
+results = await chain.abatch(
+    inputs
+)
+6. astream()
+Async streaming.
+
+async for chunk in chain.astream(
+    {"topic": "Python"}
+):
+    print(chunk)
+Important Runnable Types
+RunnableSequence
+Created automatically using |
+
+chain = prompt | model | parser
+Internally:
+
+RunnableSequence
+Flow:
+
+Prompt
+ ↓
+Model
+ ↓
+Parser
+RunnableLambda
+Wraps custom Python functions.
+
+Example:
+
+from langchain_core.runnables import RunnableLambda
+
+uppercase = RunnableLambda(
+    lambda x: x.upper()
+)
+
+print(
+    uppercase.invoke("python")
+)
+Output:
+
+PYTHON
+Why use RunnableLambda?
+To add custom logic inside a chain.
+
+chain = (
+    prompt
+    | model
+    | StrOutputParser()
+    | RunnableLambda(
+        lambda x: x.upper()
+    )
+)
+RunnableBranch
+Provides if-else style routing.
+
+branch = RunnableBranch(
+    (
+        lambda x: "python" in x.lower(),
+        python_chain
+    ),
+    default_chain
+)
+RunnableParallel
+Runs multiple chains simultaneously.
+
+from langchain_core.runnables import RunnableParallel
+
+parallel = RunnableParallel(
+    summary=summary_chain,
+    sentiment=sentiment_chain
+)
+Output:
+
+{
+    "summary": "...",
+    "sentiment": "positive"
+}
+How LCEL Uses Runnables
+This:
+
+chain = prompt | model | parser
+works because:
+
+PromptTemplate
+is a Runnable.
+
+ChatHuggingFace
+is a Runnable.
+
+PydanticOutputParser
+is a Runnable.
+
+Since all implement the same interface, they can be composed together.
+
+Real Project Example
+Resume Parser:
+
+Resume
+  ↓
+Prompt
+  ↓
+LLM
+  ↓
+Pydantic Parser
+  ↓
+Structured Data
+chain = prompt | model | parser
+Each component is a Runnable.
+
+Interview Answer (2-minute version)
+In LangChain, a Runnable is the core abstraction that represents any component capable of accepting input and producing output. Components such as prompts, chat models, output parsers, retrievers, and even complete chains are all Runnables. They provide a standardized interface with methods like invoke(), batch(), stream(), and their asynchronous counterparts. Runnables make it easy to compose workflows using the LCEL | operator, enabling sequential, parallel, and branching pipelines. Common Runnable types include RunnableSequence, RunnableLambda, RunnableBranch, and RunnableParallel. They are the foundation of modern LangChain applications.
+
+
+Document loaders in python
+
+If you're asking in the context of LangChain and RAG applications, Document Loaders are used to load data from different sources and convert it into LangChain Document objects.
+
+What are Document Loaders?
+A Document Loader is a component that reads data from:
+
+PDF files
+
+Word documents
+
+Text files
+
+CSV files
+
+Excel files
+
+Web pages
+
+YouTube transcripts
+
+Databases
+
+APIs
+
+and converts them into LangChain Documents.
+
+A Document object contains:
+
+Document(
+    page_content="Actual text",
+    metadata={"source": "file.pdf"}
+)
+Why do we need Document Loaders?
+Before generating embeddings and storing data in a vector database, we first need to extract text.
+
+Example RAG Pipeline:
+
+PDF
+ ↓
+Document Loader
+ ↓
+Documents
+ ↓
+Text Splitter
+ ↓
+Embeddings
+ ↓
+Vector Database
+ ↓
+Retriever
+ ↓
+LLM
+Common Document Loaders
+1. TextLoader
+Loads .txt files.
+
+from langchain_community.document_loaders import TextLoader
+
+loader = TextLoader("notes.txt")
+
+docs = loader.load()
+Output:
+
+[
+    Document(
+        page_content="...",
+        metadata={"source":"notes.txt"}
+    )
+]
+2. PyPDFLoader
+Loads PDF documents.
+
+from langchain_community.document_loaders import PyPDFLoader
+
+loader = PyPDFLoader("resume.pdf")
+
+docs = loader.load()
+Each page becomes a separate document.
+
+print(docs[0].page_content)
+3. DirectoryLoader
+Loads multiple files from a folder.
+
+from langchain_community.document_loaders import DirectoryLoader
+
+loader = DirectoryLoader(
+    "./documents",
+    glob="*.pdf"
+)
+
+docs = loader.load()
+Useful when processing hundreds of files.
+
+4. CSVLoader
+Loads CSV data.
+
+from langchain_community.document_loaders import CSVLoader
+
+loader = CSVLoader(
+    file_path="employees.csv"
+)
+
+docs = loader.load()
+Each row becomes a document.
+
+5. UnstructuredExcelLoader
+Loads Excel files.
+
+from langchain_community.document_loaders import UnstructuredExcelLoader
+
+loader = UnstructuredExcelLoader(
+    "sales.xlsx"
+)
+
+docs = loader.load()
+6. Docx2txtLoader
+Loads Word documents.
+
+from langchain_community.document_loaders import Docx2txtLoader
+
+loader = Docx2txtLoader(
+    "report.docx"
+)
+
+docs = loader.load()
+7. WebBaseLoader
+Loads web pages.
+
+from langchain_community.document_loaders import WebBaseLoader
+
+loader = WebBaseLoader(
+    "https://example.com"
+)
+
+docs = loader.load()
+Useful for web-based RAG systems.
+
+8. YoutubeLoader
+Loads YouTube transcripts.
+
+from langchain_community.document_loaders import YoutubeLoader
+
+loader = YoutubeLoader.from_youtube_url(
+    "https://youtube.com/...",
+    add_video_info=True
+)
+
+docs = loader.load()
+9. JSONLoader
+Loads JSON files.
+
+from langchain_community.document_loaders import JSONLoader
+
+loader = JSONLoader(
+    file_path="data.json",
+    jq_schema=".employees[]"
+)
+
+docs = loader.load()
+10. DataFrameLoader
+Loads Pandas DataFrames.
+
+from langchain_community.document_loaders import DataFrameLoader
+
+loader = DataFrameLoader(
+    dataframe=df,
+    page_content_column="description"
+)
+
+docs = loader.load()
+Very useful for Data Engineering projects.
+
+Lazy Loading
+Instead of loading everything into memory:
+
+docs = loader.load()
+Use:
+
+for doc in loader.lazy_load():
+    print(doc.page_content)
+Useful for large files.
+
+Document Structure
+Most loaders return:
+
+[
+    Document(
+        page_content="Python is a programming language",
+        metadata={
+            "source":"python.pdf",
+            "page":1
+        }
+    )
+]
+page_content
+Contains actual text.
+
+metadata
+Contains:
+
+source
+
+page number
+
+file name
+
+URL
+
+author
+
+depending on the loader.
+
+Real Interview Example
+Suppose you're building a PDF Question-Answering System.
+
+Company Policies PDF
+        ↓
+PyPDFLoader
+        ↓
+Documents
+        ↓
+TextSplitter
+        ↓
+Embeddings
+        ↓
+FAISS
+        ↓
+Retriever
+        ↓
+LLM
+Here PyPDFLoader is responsible for extracting text from the PDF.
+
+Commonly Asked Interview Question
+Difference between Document Loader and Text Splitter
+Document Loader	Text Splitter
+Reads data from source	Splits text into chunks
+First step in RAG	Second step in RAG
+Produces Documents	Produces smaller Documents
+Example: PDFLoader	Example: RecursiveCharacterTextSplitter
+Flow:
+
+PDF
+ ↓
+Document Loader
+ ↓
+Large Document
+ ↓
+Text Splitter
+ ↓
+Chunks
+Interview Answer
+Document Loaders in LangChain are components used to ingest data from various sources such as PDFs, Word documents, text files, CSVs, web pages, YouTube transcripts, databases, and APIs. They convert the source content into LangChain Document objects containing page_content and metadata. Document loaders are typically the first step in a RAG pipeline, followed by text splitting, embedding generation, and storage in a vector database. Common loaders include PyPDFLoader, TextLoader, CSVLoader, Docx2txtLoader, WebBaseLoader, and DirectoryLoader.
+
+
+from langchain_community
+
+langchain_community is a separate package that contains community-maintained integrations for LangChain.
+
+Why was it introduced?
+Earlier, everything was inside:
+
+from langchain.document_loaders import PyPDFLoader
+from langchain.vectorstores import FAISS
+As LangChain grew, integrations were moved into separate packages:
+
+Package	Purpose
+langchain-core	Core abstractions (prompts, runnables, parsers)
+langchain	High-level LangChain functionality
+langchain-community	Community integrations
+langchain-openai	OpenAI integration
+langchain-huggingface	Hugging Face integration
+langchain-google-genai	Gemini integration
+Installation
+pip install langchain-community
+Verify:
+
+pip show langchain-community
+Common Imports from langchain_community
+Document Loaders
+from langchain_community.document_loaders import (
+    PyPDFLoader,
+    TextLoader,
+    CSVLoader,
+    WebBaseLoader,
+    DirectoryLoader,
+    Docx2txtLoader
+)
+Vector Stores
+from langchain_community.vectorstores import FAISS
+Embeddings (older style)
+from langchain_community.embeddings import HuggingFaceEmbeddings
+Although nowadays it's recommended to use:
+
+from langchain_huggingface import HuggingFaceEmbeddings
+Retrievers
+from langchain_community.retrievers import BM25Retriever
+Utilities
+from langchain_community.utilities import WikipediaAPIWrapper
+Example: Loading a PDF
+from langchain_community.document_loaders import PyPDFLoader
+
+loader = PyPDFLoader("sample.pdf")
+
+docs = loader.load()
+
+print(docs[0].page_content)
+If VS Code shows:
+Import "langchain_community" could not be resolved
+Then either:
+
+Package is not installed
+
+pip install langchain-community
+Wrong Python interpreter selected in VS Code
+
+Check:
+
+which python      # Linux/Mac
+where python      # Windows
+and in VS Code:
+
+Ctrl + Shift + P
+→ Python: Select Interpreter
+Choose the interpreter from your virtual environment.
+
+For your LangChain setup
+Since you're using:
+
+langchain == 0.3.x
+langchain_huggingface
+these imports are the recommended modern ones:
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import FAISS
+
+from langchain_huggingface import (
+    ChatHuggingFace,
+    HuggingFaceEndpoint,
+    HuggingFaceEmbeddings
+)
+
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import (
+    StrOutputParser,
+    JsonOutputParser,
+    PydanticOutputParser
+)
+Interview Answer
+langchain_community is a package that contains community-maintained integrations for external systems such as document loaders, vector stores, retrievers, databases, and APIs. It was introduced to keep the LangChain core lightweight and modular. Common components imported from langchain_community include PyPDFLoader, FAISS, CSVLoader, WebBaseLoader, and BM25Retriever.
+
+
+Import "langchain_community" could not be resolved
+
+The error:
+
+Import "langchain_community" could not be resolved
+usually means either the package is not installed or VS Code is using a different Python interpreter than your virtual environment.
+
+Step 1: Check if it's installed
+Run:
+
+pip show langchain-community
+If you get:
+
+WARNING: Package(s) not found
+install it:
+
+pip install langchain-community
+Step 2: Verify installation
+Run:
+
+pip list | findstr langchain
+You should see something like:
+
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+Step 3: Check your VS Code interpreter
+Since you're working inside:
+
+...\myEnv\
+make sure VS Code is using that environment.
+
+Press:
+
+Ctrl + Shift + P
+Then:
+
+Python: Select Interpreter
+Choose:
+
+...\myEnv\Scripts\python.exe
+Step 4: Verify from Python
+Open a terminal in VS Code and run:
+
+import sys
+print(sys.executable)
+
+import langchain_community
+print(langchain_community.__file__)
+If this works, the package is installed correctly.
+
+Step 5: Your versions matter
+Earlier you mentioned:
+
+langchain_huggingface==0.3.14
+Please run:
+
+pip show langchain
+pip show langchain-core
+pip show langchain-community
+and share the output.
+
+If you're using LangChain 0.3.x, I can tell you the exact compatible version of langchain-community to install. Often the issue is a version mismatch between:
+
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+rather than the import statement itself.
+
+

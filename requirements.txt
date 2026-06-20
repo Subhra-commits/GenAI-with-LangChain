@@ -7,6 +7,9 @@ transformers
 huggingface_hub
 langchain_huggingface
 
+# Document loaders
+langchain_community
+
 # Environment and utility packages
 python-dotenv
 numpy
