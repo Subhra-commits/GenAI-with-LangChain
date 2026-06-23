@@ -10,6 +10,9 @@ langchain_huggingface
 # Document loaders
 langchain_community
 
+# Semantic Text Spliltter
+langchain-experimental
+
 # Environment and utility packages
 python-dotenv
 numpy
@@ -17,3 +20,6 @@ numpy
 # Data validation and frontend application
 pydantic
 streamlit
+
+# Loader for PDF documents
+PyPDF
