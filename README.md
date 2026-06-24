@@ -56,10 +56,6 @@ Note: Some examples require API keys or additional environment configuration for
 - Open loader and model files in `document_loader/` and `models/` to see how documents are indexed and how embeddings/search are performed.
 - Use the prompt templates in `prompts/` to adapt example prompts for your models.
 
-## Contributing
-
-Contributions and improvements are welcome. Please open issues or PRs with focused changes or example additions.
-
 ## Notes
 
 - This repository is intended as a learning resource and collection of small examples — not a production-ready project. Review and adapt examples before using in production.
