@@ -23,3 +23,6 @@ streamlit
 
 # Loader for PDF documents
 PyPDF
+
+# Retriever
+wikipedia # for wikipedia retriever
